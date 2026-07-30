@@ -20,6 +20,14 @@ class RefreshRequest(BaseModel):
     refresh_token: str
 
 
+class RegisterRequest(BaseModel):
+    tenant_name: str
+    tenant_slug: str
+    email: EmailStr
+    password: str
+    full_name: str | None = None
+
+
 class UserResponse(BaseModel):
     id: UUID
     email: str
