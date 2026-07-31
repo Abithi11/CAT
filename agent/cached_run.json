@@ -1,0 +1,29 @@
+{
+  "id": "demo-replay",
+  "equipment_code": "EQX1002",
+  "anomaly_score": 78,
+  "verdict": "unassigned_usage",
+  "confidence": 0.88,
+  "summary": "EQX1002 (Crane) logged 11 idle hours per day over the evaluation window while 100% of its usage records carry no site and no operator. The active rental has no operator on record, so nobody is accountable for the machine's current custody period. Combined with zero engine hours, this is untraceable holding of rented equipment, not productive use.",
+  "recommended_action": "Require check-out records to include site and operator; audit custody events for this machine and contact the contract holder before the return date.",
+  "evidence": {
+    "key_evidence": [
+      "100% of usage days logged with NULL site and NULL operator",
+      "0.0 engine hours vs 11.0 idle hours per day across 20 logged days",
+      "No operator assigned on the active rental - custody chain incomplete",
+      "Anomaly score 78 (Critical) driven by ghost-usage and idle components"
+    ],
+    "anomaly": {
+      "anomaly_score": 78,
+      "severity": "Critical Anomaly",
+      "metrics": {"idle_ratio": 0.996, "ghost_ratio": 1.0, "fuel_z_score": 0.1, "logs_analyzed": 20},
+      "explanation": "High underutilization: machine idled 99.6% of total running time; Untraceable operations: 100.0% of usage logged with NULL site or operator"
+    },
+    "usage_stats": {"window_days": 30, "days_logged": 20, "engine_hours": 0.4, "idle_hours": 220.0, "fuel_litres": 36.2, "ghost_days": 20},
+    "operator_history": {"operator_assigned": false, "note": "No operator on record for the current rental - custody chain incomplete."},
+    "contract_context": {"has_rental_history": true, "rental_status": "active", "check_out_date": "2026-07-06", "expected_return_date": "2026-08-02", "days_overdue": 0, "site_code": null, "site_name": "Unassigned", "equipment_status": "rented", "kill_switch_active": false}
+  },
+  "llm_used": true,
+  "status": "pending",
+  "note": "Cached investigator run for demo replay - served without invoking the LLM."
+}

@@ -202,13 +202,16 @@ class SyntheticFleetGenerator:
                     day += timedelta(days=1)
 
                 # Checkin via service layer
-                if returned:
-                    await checkin_equipment(
-                        db, tenant_id, eq.equipment_code,
-                        actual_return_date=actual_return,
-                    )
+                if not returned:
+                    # Machine is still out as of today — that's this machine's end
+                    # state. Looping again would try to check out a rented machine.
+                    break
+                await checkin_equipment(
+                    db, tenant_id, eq.equipment_code,
+                    actual_return_date=actual_return,
+                )
 
-                cursor = (actual_return if returned else expected_return) + timedelta(days=int(self.rng.integers(1, 8)))
+                cursor = actual_return + timedelta(days=int(self.rng.integers(1, 8)))
 
         logger.info("Generated %d rentals, %d usage logs via service layer", rental_count, log_count)
         return rental_count, log_count

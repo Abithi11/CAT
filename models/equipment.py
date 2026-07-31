@@ -16,6 +16,7 @@ class Equipment(Base):
     equipment_code = Column(String(50), nullable=False)
     equipment_type = Column(String(50), nullable=False)  # Excavator, Crane, Bulldozer, Grader, Loader, Compactor
     status = Column(String(20), default="available")  # available, rented, maintenance, retired
+    disabled = Column(Boolean, default=False, nullable=False)  # remote kill-switch: blocks checkout
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 

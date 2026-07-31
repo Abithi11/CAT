@@ -3,6 +3,7 @@
 from datetime import date, timedelta
 from uuid import uuid4
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from models.equipment import Equipment
@@ -122,6 +123,47 @@ class TestAnalytics:
         assert good["anomaly_score"] < 35
         assert good["severity"] == "Normal"
         assert good["metrics"]["ghost_ratio"] == 0.0
+
+    async def test_structural_rule_escalates_ghost_usage_to_critical(self, client, engine):
+        """Fully untraceable custody must reach Critical even when the machine
+        works normally otherwise: 45*idle + 40*ghost caps at ~57 for that shape,
+        which would silently keep a governance failure off the alert feed."""
+        reg = await client.post("/auth/register", json={
+            "tenant_name": "GhostCo", "tenant_slug": "ghostco",
+            "email": "ops@ghostco.com", "password": "ghost123",
+        })
+        headers = {"Authorization": f"Bearer {reg.json()['access_token']}"}
+
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as db:
+            tenant = (await db.execute(select(Tenant).where(Tenant.slug == "ghostco"))).scalar_one()
+            eq = Equipment(id=uuid4(), tenant_id=tenant.id, equipment_code="GHOST-1",
+                           equipment_type="Loader", status="rented")
+            rental = Rental(
+                id=uuid4(), tenant_id=tenant.id, equipment_id=eq.id,
+                check_out_date=date.today() - timedelta(days=12),
+                expected_return_date=date.today() + timedelta(days=12),
+                status="active",
+            )
+            db.add_all([eq, rental])
+            await db.flush()
+            # Healthy work pattern (idle ratio ~0.33) but zero custody records
+            for i in range(10):
+                db.add(UsageLog(
+                    id=uuid4(), tenant_id=tenant.id, rental_id=rental.id, equipment_id=eq.id,
+                    log_date=date.today() - timedelta(days=i + 1),
+                    engine_hours=6.0, idle_hours=3.0, fuel_litres=66.0,
+                    site_id=None, operator_id=None,
+                ))
+            await db.commit()
+
+        resp = await client.get("/analytics/anomalies?window_days=30", headers=headers)
+        ghost = {i["equipment_code"]: i for i in resp.json()}["GHOST-1"]
+        assert ghost["metrics"]["ghost_ratio"] == 1.0
+        assert ghost["metrics"]["idle_ratio"] < 0.5, "idle alone must not explain the score"
+        assert ghost["anomaly_score"] >= 60, ghost
+        assert ghost["severity"] == "Critical Anomaly"
+        assert "Structural violation" in ghost["explanation"]
 
     async def test_anomalies_min_score_filter(self, client, analytics_setup):
         setup = analytics_setup

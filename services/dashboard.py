@@ -139,6 +139,7 @@ async def get_live_assets(
             "equipment_code": eq.equipment_code,
             "equipment_type": eq.equipment_type,
             "status": eq.status,
+            "disabled": bool(eq.disabled),  # remote kill-switch marker
             "current_deployment": {
                 "rental_id": str(rent_id) if rent_id else None,
                 "site_id": str(s_id) if s_id else None,

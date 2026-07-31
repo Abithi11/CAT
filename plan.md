@@ -22,15 +22,15 @@ Legend: `[x]` done · `[ ]` todo · **P0** = required outcome, must ship · **P1
 - [x] Seasonality per equipment type (e.g. excavators peak pre-monsoon)
 - [x] Planted anomalies mirroring sample data (idle machines, NULL sites, unassigned usage)
 - [x] **Hidden degradation onsets with ground-truth dates** — post-onset fuel/hour drift, efficiency decline (this is what makes the USP accuracy claim possible)
-- [ ] Seed script wired into docker-compose bring-up (one command = running system with demo fleet)
+- [x] Seed script wired into docker-compose bring-up (one command = running system with demo fleet)
 
 ## Phase 2 — Demand forecasting + rebalancing (P0 forecast, P1 recommendations)
 
-- [ ] Feature pipeline: rentals per equipment type × site × month
-- [ ] NGBoost model → probability distributions, not point estimates
-- [ ] Forecast API endpoint + dashboard panel ("80% chance S003 needs 3+ excavators in June")
-- [ ] Rebalancing recommendations: greedy assignment of forecasted demand to idle equipment
-- [ ] Attach ₹ saved to every recommendation ("Move EQX1004 to S003 by June 1 — saves ₹48k/month idle cost")
+- [x] Feature pipeline: rentals per equipment type × site × month
+- [x] NGBoost model → probability distributions, not point estimates
+- [x] Forecast API endpoint + dashboard panel ("80% chance S003 needs 3+ excavators in June")
+- [x] Rebalancing recommendations: greedy assignment of forecasted demand to idle equipment
+- [x] Attach ₹ saved to every recommendation ("Move EQX1004 to S003 by June 1 — saves ₹48k/month idle cost")
 
 ## Phase 3 — Behavioral anomaly layer (P1)
 
@@ -40,34 +40,48 @@ Legend: `[x]` done · `[ ]` todo · **P0** = required outcome, must ship · **P1
 
 ## Phase 4 — Degradation tracing (P1 — THE USP)
 
-- [ ] Health signal series per machine: fuel per engine-hour, efficiency, idle drift
-- [ ] Change-point detection on the series (`ruptures` PELT or CUSUM)
-- [ ] Onset attribution: map detected change-point → rental, site, operator in custody
+- [x] Health signal series per machine: fuel per engine-hour, efficiency, idle drift
+- [x] Change-point detection on the series (`ruptures` PELT or CUSUM)
+- [x] Onset attribution: map detected change-point → rental, site, operator in custody
 - [ ] Per-machine health timeline view in dashboard (life across rentals, red onset marker)
-- [ ] Early-intervention savings estimate per detection (₹ caught-early vs repair-at-failure)
-- [ ] **Accuracy validation against ground truth** — "traced onset within ±N days on X% of fleet" (this number goes on the slide)
+- [x] Early-intervention savings estimate per detection (₹ caught-early vs repair-at-failure)
+- [x] **Accuracy validation against ground truth** — `POST /degradation/validate`
+
+  **Measured (6 seeds × 40 machines, 36 planted onsets, 204 healthy machines):**
+  - **83.3% of degradation onsets traced within ±30 days** (per-seed range 66.7–100%)
+  - 63.9% within ±14 days · 91.7% within ±45 days
+  - **mean absolute error 15.4 days**, median error 9 days
+  - **0 false positives** across 204 healthy machines
+  - Method: fuel-litres-per-engine-hour → 7-day rolling median → ruptures PELT
+    detection → flat-then-ramp fit in calendar-day space for onset placement
+  - Reproduce: `POST /degradation/validate?tolerance_days=30`; guarded by
+    `tests/test_degradation.py::test_accuracy_claim_holds_on_a_full_fleet`
+  - Note: the 20-machine demo seed plants only 3 onsets — quote the 40-machine
+    figure on the slide, not the demo tenant's small-sample number
 
 ## Phase 5 — Reasoning layer (P1 agent, P2 NL query)
 
-- [ ] LM Studio structured-output client (OpenAI-compatible endpoint via HTTPX, JSON schema enforced)
-- [ ] LangGraph investigator agent: anomaly fires → bounded graph (fetch usage logs → operator history → contract/site context → synthesize case file with verdict + recommended action)
-- [ ] Human approval queue for agent recommendations (approve/reject in dashboard)
-- [ ] Cache one good agent run as demo fallback (local models flake; replays don't)
+- [x] LM Studio structured-output client (OpenAI-compatible endpoint via HTTPX, JSON schema enforced)
+- [x] LangGraph investigator agent: anomaly fires → bounded graph (fetch usage logs → operator history → contract/site context → synthesize case file with verdict + recommended action)
+- [x] Human approval queue for agent recommendations (approve/reject in dashboard)
+- [x] Cache one good agent run as demo fallback (local models flake; replays don't)
 - [ ] NL querying: LLM → Pydantic-validated query spec (metric, filters, group-by, time range) → whitelisted SQLAlchemy — never raw SQL
 
 ## Phase 6 — Platform envelope (P0 unless marked)
 
 - [x] Multi-tenant scoping: tenant_id on all tables + tenant claim in login/JWT
-- [ ] Email delivery for alerts via smtplib (app-password SMTP; in-app alerts stay the demo path)
-- [ ] Summary reports: total rented hours, per-site utilization, downtime, idle ratios
-- [ ] Remote immobilization as simulated kill-switch (P1 — promised in day-1 summary): dealer toggles disabled flag → machine blocked from check-out, marked on dashboard
+- [x] Email delivery for alerts via smtplib (app-password SMTP; in-app alerts stay the demo path)
+- [x] Summary reports: total rented hours, per-site utilization, downtime, idle ratios
+- [x] Remote immobilization as simulated kill-switch (P1 — promised in day-1 summary): dealer toggles disabled flag → machine blocked from check-out, marked on dashboard
 - [ ] Sustainability counter (P2, one line of code): idle hours → diesel litres → CO₂ on dashboard
 
 ## Phase 7 — Testing & delivery (P0 — promised in submission)
 
-- [x] pytest smoke & functional suites (auth, registration, generator determinism, QR codes, rental lifecycle)
-- [ ] docker-compose: single-command bring-up, seeded, no manual steps
-- [ ] README: run instructions + architecture sketch (judges may open the repo)
+- [x] pytest smoke suite: health, every route registered, auth roundtrip, all read endpoints on an empty tenant (`tests/test_smoke.py`)
+- [x] pytest functional suite: full lifecycle — checkout → 150 days usage → overdue alert → anomaly flag → degradation trace with custody (`tests/test_e2e_lifecycle.py`)
+- [x] 95 tests green: auth, registration, generator determinism, QR codes, rental lifecycle, alerts, agent, LLM client, forecasting, degradation, reports, kill-switch
+- [x] docker-compose: single-command bring-up, seeded, no manual steps
+- [x] README: run instructions + architecture sketch (judges may open the repo)
 
 ## Phase 8 — Demo & pitch prep
 

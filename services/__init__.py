@@ -40,6 +40,8 @@ async def checkout_equipment(
 
     if not eq:
         raise ValueError(f"Equipment '{equipment_code}' not found")
+    if eq.disabled:
+        raise ValueError(f"Equipment '{equipment_code}' is immobilized (remote kill-switch active)")
     if eq.status != "available":
         raise ValueError(f"Equipment '{equipment_code}' is not available (status={eq.status})")
 

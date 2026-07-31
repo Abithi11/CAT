@@ -146,6 +146,46 @@ class TestGeneratorIntegration:
             )
             assert null_site > 0 or null_op > 0, "Expected anomaly rentals with NULL site/operator"
 
+    @pytest.mark.parametrize("seed", [1, 7, 99])
+    async def test_generate_survives_multiple_seeds(self, engine, seed):
+        """Regression: a rental still open at end_date used to loop around and
+        re-checkout a rented machine, blowing up for some seed/size combos."""
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+        from sqlalchemy import func, select
+        from models.equipment import Equipment
+        from models.rental import Rental
+        from models.tenant import Tenant
+
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as db:
+            t = Tenant(id=uuid4(), name=f"Seed{seed}", slug=f"seed{seed}", is_active=True)
+            db.add(t)
+            await db.flush()
+            summary = await SyntheticFleetGenerator(seed=seed).generate(
+                db, t.id, num_equipment=25, num_sites=5, num_operators=8, months=18,
+            )
+            assert summary["rentals"] > 0
+
+            # No machine may hold two open rentals at once
+            dupes = (await db.execute(
+                select(Rental.equipment_id)
+                .where(Rental.tenant_id == t.id, Rental.actual_return_date.is_(None))
+                .group_by(Rental.equipment_id)
+                .having(func.count() > 1)
+            )).all()
+            assert not dupes, f"equipment with overlapping open rentals: {dupes}"
+
+            # Equipment status must agree with rental state
+            rented = (await db.execute(
+                select(func.count()).select_from(Equipment)
+                .where(Equipment.tenant_id == t.id, Equipment.status == "rented")
+            )).scalar_one()
+            open_rentals = (await db.execute(
+                select(func.count()).select_from(Rental)
+                .where(Rental.tenant_id == t.id, Rental.actual_return_date.is_(None))
+            )).scalar_one()
+            assert rented == open_rentals
+
     async def test_seed_endpoint(self, client, engine):
         """Register a tenant, then hit /seed to generate data."""
         reg = await client.post("/auth/register", json={

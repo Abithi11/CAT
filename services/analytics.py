@@ -141,6 +141,18 @@ async def calculate_fleet_anomalies(
         raw_score = 45.0 * s_idle + 40.0 * s_ghost + 15.0 * s_fuel
         score = min(100, int(np.round(raw_score)))
 
+        # Structural rules sit above the statistical composite: a machine whose
+        # usage is essentially untraceable, or which never actually worked, is a
+        # governance failure on its own — the weighted blend alone tops out below
+        # critical for those cases.
+        structural = []
+        if s_ghost >= 0.80:
+            structural.append("all-but-untraceable custody")
+        if s_idle >= 0.90:
+            structural.append("machine effectively never worked")
+        if structural:
+            score = max(score, 65)
+
         # Severity & explanation formulation
         if score >= 60:
             severity = "Critical Anomaly"
@@ -156,6 +168,9 @@ async def calculate_fleet_anomalies(
             reasons.append(f"Untraceable operations: {s_ghost*100:.1f}% of usage logged with NULL site or operator")
         if s_fuel > 0.33:
             reasons.append(f"Anomalous fuel efficiency drift (Z-score > 1.0) compared to {eq.equipment_type} baseline")
+
+        if structural:
+            reasons.append("Structural violation: " + ", ".join(structural))
 
         explanation = "; ".join(reasons) if reasons else "Equipment operating within normal efficiency & utilization limits."
 

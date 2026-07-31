@@ -11,7 +11,11 @@ from models.tenant import Tenant
 from models.user import User
 from utils.database import Base, get_db
 
-PG_SERVER = "postgresql+asyncpg://postgres:postgres@localhost:5432"
+import os
+
+PG_SERVER = os.environ.get(
+    "TEST_PG_SERVER", "postgresql+asyncpg://postgres:postgres@localhost:5432"
+)
 TEST_DB_NAME = "cat_test"
 TEST_DB = f"{PG_SERVER}/{TEST_DB_NAME}"
 PWD = CryptContext(schemes=["bcrypt"], deprecated="auto")

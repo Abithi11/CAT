@@ -1,12 +1,13 @@
 services:
   db:
-    image: postgres:16-alpine
+    image: timescale/timescaledb:latest-pg16
     environment:
       POSTGRES_DB: cat
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      # host port override for machines that already run Postgres: DB_PORT=5433 docker compose up
+      - "${DB_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -17,6 +18,7 @@ services:
 
   app:
     build: .
+    command: sh -c "python seed_demo.py && uvicorn main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     environment:
@@ -25,6 +27,22 @@ services:
       JWT_ALGORITHM: HS256
       JWT_ACCESS_TOKEN_EXPIRE_MINUTES: 30
       JWT_REFRESH_TOKEN_EXPIRE_DAYS: 7
+      LLM_BASE_URL: ${LLM_BASE_URL:-http://trinity.local:1234/v1}
+      LLM_MODEL: ${LLM_MODEL:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      ALERT_EMAIL_FROM: ${ALERT_EMAIL_FROM:-}
+      ALERT_EMAIL_TO: ${ALERT_EMAIL_TO:-}
+      ALERT_SCAN_INTERVAL_MINUTES: ${ALERT_SCAN_INTERVAL_MINUTES:-15}
+      SCHEDULER_ENABLED: ${SCHEDULER_ENABLED:-true}
+    extra_hosts:
+      # For LM Studio running on the Docker host itself, set
+      # LLM_BASE_URL=http://host.docker.internal:1234/v1
+      # If it runs on another machine, point LLM_BASE_URL at its IP — mDNS
+      # ".local" names do not resolve inside containers.
+      - "host.docker.internal:host-gateway"
     depends_on:
       db:
         condition: service_healthy
