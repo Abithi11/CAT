@@ -15,6 +15,7 @@ from routers.register import register_router
 from routers.rentals import rentals_router
 from routers.seed import seed_router
 from routers.analytics import analytics_router
+from routers.dashboard import dashboard_router
 
 
 @asynccontextmanager
@@ -31,4 +32,5 @@ app.include_router(register_router)
 app.include_router(rentals_router)
 app.include_router(seed_router)
 app.include_router(analytics_router)
+app.include_router(dashboard_router)
 

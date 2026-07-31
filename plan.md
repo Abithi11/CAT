@@ -6,7 +6,7 @@ Legend: `[x]` done · `[ ]` todo · **P0** = required outcome, must ship · **P1
 
 ## Phase 0 — Core foundation (day 1)
 
-- [ ] Live asset dashboard with real-time fleet status
+- [x] Live asset dashboard with real-time fleet status
 - [x] Telemetry logging: runtime hours, idle hours, fuel usage, operator IDs
 - [x] QR/RFID-simulated check-in / check-out
 - [x] Usage logging across sites
