@@ -1,2 +1,16 @@
+# Python & Environments
 .venv/
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+*.egg-info/
+dist/
+build/
+
+# Environment Variables & Secrets
+.env
+*.env
+!.env.example
+*.local
