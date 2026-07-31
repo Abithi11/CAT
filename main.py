@@ -12,6 +12,7 @@ from models.rental import Rental  # noqa: F401
 from models.usage_log import UsageLog  # noqa: F401
 from routers.login import login_router
 from routers.register import register_router
+from routers.rentals import rentals_router
 from routers.seed import seed_router
 
 
@@ -26,4 +27,5 @@ app = FastAPI(title="CAT - Smart Rental Tracking", lifespan=lifespan)
 
 app.include_router(login_router)
 app.include_router(register_router)
+app.include_router(rentals_router)
 app.include_router(seed_router)
