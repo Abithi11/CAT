@@ -64,9 +64,13 @@ async def checkin_equipment(
     *,
     actual_return_date: date | None = None,
 ) -> Rental:
-    """Close the active rental for this equipment and mark it available.
+    """Close the open rental for this equipment and mark it available.
 
-    Raises ValueError if no active rental found.
+    A rental is "open" while actual_return_date is NULL, whether its status is
+    "active" or "overdue". Lateness stays derivable from
+    actual_return_date > expected_return_date.
+
+    Raises ValueError if no open rental found.
     """
     actual_return_date = actual_return_date or date.today()
 
@@ -78,14 +82,14 @@ async def checkin_equipment(
         raise ValueError(f"Equipment '{equipment_code}' not found")
 
     rental = (await db.execute(
-        select(Rental).where(Rental.equipment_id == eq.id, Rental.status == "active")
+        select(Rental).where(Rental.equipment_id == eq.id, Rental.actual_return_date.is_(None))
     )).scalar_one_or_none()
 
     if not rental:
         raise ValueError(f"No active rental for '{equipment_code}'")
 
     rental.actual_return_date = actual_return_date
-    rental.status = "overdue" if actual_return_date > rental.expected_return_date else "returned"
+    rental.status = "returned"
     eq.status = "available"
 
     await db.flush()

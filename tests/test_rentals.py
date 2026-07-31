@@ -99,3 +99,61 @@ class TestRentals:
         }, headers=setup["headers"])
         assert resp.status_code == 400
         assert "not found" in resp.json()["detail"]
+
+    async def test_checkin_after_overdue_flag(self, client, rental_setup):
+        """Regression: a rental flipped to 'overdue' by the scan must still be checkin-able."""
+        setup = rental_setup
+        resp = await client.post("/rentals/checkout", json={
+            "equipment_code": setup["eq_code"],
+            "expected_return_date": str(date.today() - timedelta(days=3)),
+        }, headers=setup["headers"])
+        assert resp.status_code == 201, resp.text
+
+        scan = await client.post("/rentals/detect-overdue", headers=setup["headers"])
+        assert setup["eq_code"] in [x["equipment_code"] for x in scan.json()["overdue"]]
+
+        resp2 = await client.post("/rentals/checkin", json={"equipment_code": setup["eq_code"]},
+                                  headers=setup["headers"])
+        assert resp2.status_code == 200, resp2.text
+        assert resp2.json()["status"] == "returned"
+
+    async def test_usage_logging(self, client, rental_setup):
+        setup = rental_setup
+        # No open rental yet → 400
+        early = await client.post("/usage", json={
+            "equipment_code": setup["eq_code"],
+            "engine_hours": 5.0, "idle_hours": 1.0, "fuel_litres": 60.0,
+        }, headers=setup["headers"])
+        assert early.status_code == 400
+        assert "No open rental" in early.json()["detail"]
+
+        await client.post("/rentals/checkout", json={
+            "equipment_code": setup["eq_code"],
+            "site_id": setup["site_id"], "operator_id": setup["op_id"],
+            "expected_return_date": str(date.today() + timedelta(days=7)),
+        }, headers=setup["headers"])
+
+        resp = await client.post("/usage", json={
+            "equipment_code": setup["eq_code"],
+            "engine_hours": 6.5, "idle_hours": 1.5, "fuel_litres": 80.0,
+        }, headers=setup["headers"])
+        assert resp.status_code == 201, resp.text
+        data = resp.json()
+        assert data["engine_hours"] == 6.5
+        assert data["log_date"] == str(date.today())
+        # site/operator default to the rental's own when not supplied
+        assert data["site_id"] == setup["site_id"]
+        assert data["operator_id"] == setup["op_id"]
+
+    async def test_usage_rejects_impossible_hours(self, client, rental_setup):
+        setup = rental_setup
+        await client.post("/rentals/checkout", json={
+            "equipment_code": setup["eq_code"],
+            "expected_return_date": str(date.today() + timedelta(days=7)),
+        }, headers=setup["headers"])
+
+        resp = await client.post("/usage", json={
+            "equipment_code": setup["eq_code"],
+            "engine_hours": 20.0, "idle_hours": 10.0, "fuel_litres": 5.0,
+        }, headers=setup["headers"])
+        assert resp.status_code == 422

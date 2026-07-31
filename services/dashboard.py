@@ -54,7 +54,7 @@ async def get_dashboard_summary(db: AsyncSession, tenant_id: UUID) -> dict[str, 
     # 3. Active site deployments
     site_query = (
         select(Site.id, Site.name, Site.location, func.count(Rental.id))
-        .outerjoin(Rental, (Rental.site_id == Site.id) & (Rental.status.in_(["active", "overdue"])))
+        .outerjoin(Rental, (Rental.site_id == Site.id) & Rental.actual_return_date.is_(None))
         .where(Site.tenant_id == tenant_id)
         .group_by(Site.id, Site.name, Site.location)
     )
@@ -68,6 +68,12 @@ async def get_dashboard_summary(db: AsyncSession, tenant_id: UUID) -> dict[str, 
     anomalies = await calculate_fleet_anomalies(db, tenant_id, window_days=30)
     critical_anomalies = [a for a in anomalies if a["anomaly_score"] >= 60]
     overdue_report = await detect_overdue_rentals(db, tenant_id)
+
+    # Equipment.status only ever holds available/rented/maintenance/retired;
+    # "overdue" is a rental-level fact, so derive it from the live scan.
+    overdue_count = len(overdue_report["overdue"])
+    status_counts["overdue"] = overdue_count
+    status_counts["rented"] = max(0, status_counts["rented"] - overdue_count)
 
     return {
         "fleet_overview": {
@@ -108,7 +114,7 @@ async def get_live_assets(
             Site.id, Site.name,
             Operator.id, Operator.name,
         )
-        .outerjoin(Rental, (Rental.equipment_id == Equipment.id) & (Rental.status.in_(["active", "overdue"])))
+        .outerjoin(Rental, (Rental.equipment_id == Equipment.id) & Rental.actual_return_date.is_(None))
         .outerjoin(Site, Rental.site_id == Site.id)
         .outerjoin(Operator, Rental.operator_id == Operator.id)
         .where(Equipment.tenant_id == tenant_id)

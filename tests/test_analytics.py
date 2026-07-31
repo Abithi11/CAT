@@ -91,6 +91,16 @@ class TestAnalytics:
         overdue_codes = [x["equipment_code"] for x in data["overdue"]]
         assert "OV-101" in overdue_codes
 
+    async def test_overdue_detection_idempotent(self, client, analytics_setup):
+        """A flagged rental must keep appearing in every scan until checked in."""
+        setup = analytics_setup
+        first = await client.post("/rentals/detect-overdue", headers=setup["headers"])
+        second = await client.post("/rentals/detect-overdue", headers=setup["headers"])
+        for resp in (first, second):
+            assert resp.status_code == 200, resp.text
+            codes = [x["equipment_code"] for x in resp.json()["overdue"]]
+            assert "OV-101" in codes
+
     async def test_anomalies_endpoint(self, client, analytics_setup):
         setup = analytics_setup
         resp = await client.get("/analytics/anomalies?window_days=30", headers=setup["headers"])

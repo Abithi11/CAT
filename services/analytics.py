@@ -22,12 +22,16 @@ logger = logging.getLogger(__name__)
 
 
 async def detect_overdue_rentals(db: AsyncSession, tenant_id: UUID) -> dict[str, list[dict[str, Any]]]:
-    """Scan all active rentals for overdue items and approaching deadlines."""
+    """Scan all open rentals (not yet returned) for overdue items and approaching deadlines.
+
+    Idempotent: already-flagged overdue rentals are re-reported on every scan
+    until the equipment is checked in.
+    """
     today = date.today()
     result = await db.execute(
         select(Rental, Equipment.equipment_code, Equipment.equipment_type)
         .join(Equipment, Rental.equipment_id == Equipment.id)
-        .where(Rental.tenant_id == tenant_id, Rental.status == "active")
+        .where(Rental.tenant_id == tenant_id, Rental.actual_return_date.is_(None))
     )
     rows = result.all()
 

@@ -34,7 +34,9 @@ class TestDashboard:
             
             eq_1 = Equipment(id=uuid4(), tenant_id=tenant.id, equipment_code="DASH-EX-1", equipment_type="Excavator", status="rented")
             eq_2 = Equipment(id=uuid4(), tenant_id=tenant.id, equipment_code="DASH-CR-2", equipment_type="Crane", status="available")
-            eq_3 = Equipment(id=uuid4(), tenant_id=tenant.id, equipment_code="DASH-BD-3", equipment_type="Bulldozer", status="overdue")
+            # Overdue machine: equipment stays "rented" (production never sets an
+            # "overdue" equipment status) — overdueness lives on the open rental.
+            eq_3 = Equipment(id=uuid4(), tenant_id=tenant.id, equipment_code="DASH-BD-3", equipment_type="Bulldozer", status="rented")
 
             rent_1 = Rental(
                 id=uuid4(), tenant_id=tenant.id, equipment_id=eq_1.id, site_id=site_a.id, operator_id=op_a.id,
@@ -85,6 +87,14 @@ class TestDashboard:
         assert len(sites) >= 1
         site_a = [s for s in sites if s["name"] == "Apex Quarry"][0]
         assert site_a["active_equipment_count"] == 2
+
+        # 4. Overdue count must be stable across repeated scans (regression:
+        # rentals used to vanish from the report after the first status flip)
+        resp2 = await client.get("/dashboard/summary", headers=setup["headers"])
+        assert resp2.status_code == 200
+        overview2 = resp2.json()["fleet_overview"]
+        assert overview2["status_counts"]["overdue"] == 1
+        assert overview2["status_counts"]["rented"] == 1
 
     async def test_dashboard_live_assets_endpoint(self, client, dashboard_setup):
         setup = dashboard_setup

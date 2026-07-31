@@ -10,6 +10,7 @@ from models.site import Site  # noqa: F401
 from models.operator import Operator  # noqa: F401
 from models.rental import Rental  # noqa: F401
 from models.usage_log import UsageLog  # noqa: F401
+from models.ground_truth import GroundTruth  # noqa: F401
 from routers.login import login_router
 from routers.register import register_router
 from routers.rentals import rentals_router

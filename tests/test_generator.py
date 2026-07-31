@@ -165,3 +165,35 @@ class TestGeneratorIntegration:
         assert data["summary"]["sites"] == 2
         assert data["summary"]["rentals"] > 0
         assert data["summary"]["usage_logs"] > 0
+        assert data["summary"]["degradation_ground_truth"]
+        assert data["summary"]["anomaly_equipment"]
+
+    async def test_ground_truth_persisted(self, engine):
+        """Planted degradation onsets must survive in the ground_truth table for Phase 4 scoring."""
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+        from sqlalchemy import select
+        from models.ground_truth import GroundTruth
+        from models.tenant import Tenant
+
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as db:
+            t = Tenant(id=uuid4(), name="Truth", slug="truthtest", is_active=True)
+            db.add(t)
+            await db.flush()
+            summary = await SyntheticFleetGenerator(seed=42).generate(
+                db, t.id, num_equipment=10, num_sites=3, num_operators=4, months=6,
+            )
+
+            rows = (await db.execute(
+                select(GroundTruth).where(GroundTruth.tenant_id == t.id)
+            )).scalars().all()
+
+            onsets = {r.equipment_code: r.onset_date.isoformat()
+                      for r in rows if r.truth_type == "degradation_onset"}
+            assert onsets == summary["degradation_ground_truth"]
+
+            anomalies = {r.equipment_code for r in rows if r.truth_type == "anomaly"}
+            assert anomalies == set(summary["anomaly_equipment"])
+            for r in rows:
+                if r.truth_type == "anomaly":
+                    assert r.onset_date is None

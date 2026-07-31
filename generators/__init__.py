@@ -14,6 +14,7 @@ import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.equipment import Equipment
+from models.ground_truth import GroundTruth
 from models.operator import Operator
 from models.site import Site
 from services import checkout_equipment, checkin_equipment, log_usage
@@ -81,12 +82,21 @@ class SyntheticFleetGenerator:
         eq_codes = [e.equipment_code for e in equipment_list]
         n_anomaly = max(1, int(num_equipment * 0.10))
         n_degrade = max(1, int(num_equipment * 0.15))
-        self._anomaly_equipment = set(self.rng.choice(eq_codes, size=n_anomaly, replace=False))
+        self._anomaly_equipment = {str(c) for c in self.rng.choice(eq_codes, size=n_anomaly, replace=False)}
 
         start_date = date.today() - timedelta(days=months * 30)
         for code in self.rng.choice(eq_codes, size=n_degrade, replace=False):
             onset_offset = int(self.rng.integers(months * 10, months * 25))
-            self._degrading_equipment[code] = start_date + timedelta(days=onset_offset)
+            self._degrading_equipment[str(code)] = start_date + timedelta(days=onset_offset)
+
+        # Persist planted truths so degradation tracing can be scored against them later
+        db.add_all(
+            [GroundTruth(id=uuid4(), tenant_id=tenant_id, equipment_code=c, truth_type="anomaly")
+             for c in sorted(self._anomaly_equipment)]
+            + [GroundTruth(id=uuid4(), tenant_id=tenant_id, equipment_code=c,
+                           truth_type="degradation_onset", onset_date=d)
+               for c, d in sorted(self._degrading_equipment.items())]
+        )
 
         rental_count, log_count = await self._generate_rentals(
             db, tenant_id, equipment_list, sites, operators, start_date,
@@ -96,6 +106,10 @@ class SyntheticFleetGenerator:
         summary = {
             "equipment": len(equipment_list), "sites": len(sites),
             "operators": len(operators), "rentals": rental_count, "usage_logs": log_count,
+            "anomaly_equipment": sorted(self._anomaly_equipment),
+            "degradation_ground_truth": {
+                c: d.isoformat() for c, d in sorted(self._degrading_equipment.items())
+            },
         }
         logger.info("Generation complete: %s", summary)
         return summary

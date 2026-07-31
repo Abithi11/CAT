@@ -24,7 +24,7 @@ async def dashboard_summary_endpoint(
 
 @dashboard_router.get("/live-assets", status_code=200)
 async def dashboard_live_assets_endpoint(
-    status: str | None = Query(None, description="Filter by asset status (available, rented, overdue)"),
+    status: str | None = Query(None, description="Filter by asset status (available, rented, maintenance)"),
     site_id: UUID | None = Query(None, description="Filter by deployed site UUID"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
