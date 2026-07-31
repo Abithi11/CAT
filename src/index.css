@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    @apply border-rig-700;
+  }
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-rig-900 text-rig-50 font-body antialiased;
+  }
+  ::selection {
+    @apply bg-signal/30 text-rig-50;
+  }
+  :focus-visible {
+    outline: 2px solid #f2b705;
+    outline-offset: 2px;
+  }
+}
+
+@layer utilities {
+  .tag-plate {
+    @apply relative rounded-tag border border-rig-600 bg-rig-800 shadow-rivet;
+  }
+  .tag-plate::before,
+  .tag-plate::after {
+    content: "";
+    position: absolute;
+    top: 6px;
+    width: 4px;
+    height: 4px;
+    border-radius: 9999px;
+    background: rgba(215, 219, 222, 0.25);
+  }
+  .tag-plate::before {
+    left: 6px;
+  }
+  .tag-plate::after {
+    right: 6px;
+  }
+  .hazard-edge {
+    background-image: repeating-linear-gradient(
+      135deg,
+      #f2b705 0px,
+      #f2b705 10px,
+      #14181c 10px,
+      #14181c 20px
+    );
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
